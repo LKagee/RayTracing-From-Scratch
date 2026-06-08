@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
 	int r, g, b;
 } color3;
+
 typedef struct {
 	vec3 center;
 	color3 color;
@@ -27,7 +28,17 @@ typedef struct {
 
 } Sphere;
 
-color3 background_color = {255, 255, 255};
+typedef struct {
+        vec3 direction;
+	double intensity;
+ 
+} Directional_Light;
+
+
+
+
+color3 background_color = {53, 81, 92};
+
 
 vec3 CanvasToViewport(double x, double y) {
 
@@ -37,6 +48,10 @@ vec3 CanvasToViewport(double x, double y) {
 
 double dot(vec3 u, vec3 v) {
 	return u.x*v.x + u.y*v.y + u.z*v.z;
+}
+
+double length(vec3 v) {
+	return sqrt(v.x*v.x+v.y*v.y+v.z*v.z);
 }
 
 double* RayIntersect_Sphere(vec3 ray, vec3 camera, Sphere sphere) {
@@ -55,6 +70,16 @@ double* RayIntersect_Sphere(vec3 ray, vec3 camera, Sphere sphere) {
 	return t;
 }
 
+double ComputeLight(vec3 N, vec3 P, Directional_Light light) {
+
+	double i = 0.2;
+	vec3 L = {light.direction.x - P.x, light.direction.y - P.y, light.direction.z - P.z};
+	double i_dot = dot(N, L);
+	if(i_dot < 0) i_dot = 0;
+	return i += light.intensity * i_dot / ( length(N) * length(L) );
+		
+}
+
 color3 TraceRay(vec3 ray, vec3 camera, Sphere* spheres) {
 
 	Sphere* closest_sphere = NULL;
@@ -62,6 +87,7 @@ color3 TraceRay(vec3 ray, vec3 camera, Sphere* spheres) {
 	for(int i = 0; i < 3; i++) {
 
 	double* result = RayIntersect_Sphere(ray, camera, spheres[i]);
+
 
 	
 
@@ -85,8 +111,20 @@ color3 TraceRay(vec3 ray, vec3 camera, Sphere* spheres) {
 	if(closest_sphere == NULL) {
 		return background_color;
 	}
-	return closest_sphere->color;
+
+	vec3 P = {camera.x+(closest_t*ray.x), camera.y+(closest_t*ray.y), camera.z+(closest_t*ray.z)};
+	vec3 N = {P.x-closest_sphere->center.x, P.y-closest_sphere->center.y, P.z-closest_sphere->center.z};
+        vec3 new_N = {N.x / length(N), N.y / length(N), N.z / length(N)};
+        N = new_N;
+	Directional_Light light = {.direction.x = -1, .direction.y = 1, .direction.z = 3, .intensity = .6};
+	double light_int = ComputeLight(N, P, light);
+	color3 return_col = {closest_sphere->color.r * light_int, closest_sphere->color.g * light_int, closest_sphere->color.b * light_int};
+        
+	
+	return return_col;
 }
+
+
 
 void PutPixel(color3 color, FILE* file) {
 		
