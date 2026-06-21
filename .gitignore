@@ -1,4 +1,4 @@
 *.ppm
 main
-
-
+test
+test.c
