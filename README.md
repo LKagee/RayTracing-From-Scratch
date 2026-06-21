@@ -2,6 +2,6 @@
 
 <img width="640" height="280" alt="spheres_with_light" src="spheres_withl_light.png" />
 
-<img width="640" height="280" alt="spheres_with_specular1" src="spheres_with_specular1" />
+<img width="640" height="280" alt="spheres_with_specular1" src="spheres_with_specular1.png" />
 
-<img width="640" height="280" alt="spheres_with_specular2" src="spheres_with_specular2" />
+<img width="640" height="280" alt="spheres_with_specular2" src="spheres_with_specular2.png" />
