@@ -25,6 +25,7 @@ typedef struct {
 	vec3 center;
 	color3 color;
 	double radius;
+	int specular;
 
 } Sphere;
 
@@ -38,6 +39,22 @@ typedef struct {
 
 
 color3 background_color = {53, 81, 92};
+
+
+// Optimized function using the new hardcoded look-down-and-right matrix
+  vec3 multiplyMatrixVector(vec3 v) {
+    // New matrix coefficients for Camera (-3,0,2) pointing at (0,-2,1):
+    // Row 1 (Right):   [-0.55470020, -0.83205029,  0.00000000]
+    // Row 2 (Up):      [ 0.22237479, -0.14824986,  0.96362411]
+    // Row 3 (Forward): [ 0.80178373, -0.53452248, -0.26726124]
+    
+    vec3 result;
+    result.x = -0.55470020 * v.x - 0.83205029 * v.y;
+    result.y =  0.22237479 * v.x - 0.14824986 * v.y + 0.96362411 * v.z;
+    result.z =  0.80178373 * v.x - 0.53452248 * v.y - 0.26726124 * v.z;
+    return result;
+}
+
 
 
 vec3 CanvasToViewport(double x, double y) {
@@ -70,13 +87,33 @@ double* RayIntersect_Sphere(vec3 ray, vec3 camera, Sphere sphere) {
 	return t;
 }
 
-double ComputeLight(vec3 N, vec3 P, Directional_Light light) {
+double ComputeLight(vec3 N, vec3 P, vec3 V, Directional_Light *light, int s) {
 
 	double i = 0.2;
-	vec3 L = {light.direction.x - P.x, light.direction.y - P.y, light.direction.z - P.z};
+	for(int k = 0; k < 2; k++) {
+	vec3 L = {light[k].direction.x - P.x, light[k].direction.y - P.y, light[k].direction.z - P.z};
 	double i_dot = dot(N, L);
 	if(i_dot < 0) i_dot = 0;
-	return i += light.intensity * i_dot / ( length(N) * length(L) );
+	i += light[k].intensity * i_dot / ( length(N) * length(L) );
+
+
+
+	if(s != -1) {
+		double dot_d = dot(N, L);
+		
+		vec3 R = {2*N.x*dot_d - L.x, 2*N.y*dot_d - L.y, 2*N.z*dot_d - L.z};
+		double r_dot = dot(R, V);
+		if(r_dot > 0) i+=light[k].intensity * pow(r_dot/(length(R)*length(V)), s);
+
+
+	}
+}
+	if(i > 1) i = 1;
+	return i;
+
+
+
+
 		
 }
 
@@ -117,7 +154,13 @@ color3 TraceRay(vec3 ray, vec3 camera, Sphere* spheres) {
         vec3 new_N = {N.x / length(N), N.y / length(N), N.z / length(N)};
         N = new_N;
 	Directional_Light light = {.direction.x = -1, .direction.y = 1, .direction.z = 3, .intensity = .6};
-	double light_int = ComputeLight(N, P, light);
+	Directional_Light light2 = {.direction.x = 5, .direction.y = 0, .direction.z = 1, .intensity = .2};
+	Directional_Light light_arr[2] = {light, light2};
+
+	vec3 inv_D = {-ray.x, -ray.y, -ray.z};
+	double light_int = ComputeLight(N, P, inv_D, light_arr, closest_sphere->specular);
+
+
 	color3 return_col = {closest_sphere->color.r * light_int, closest_sphere->color.g * light_int, closest_sphere->color.b * light_int};
         
 	
@@ -127,6 +170,10 @@ color3 TraceRay(vec3 ray, vec3 camera, Sphere* spheres) {
 
 
 void PutPixel(color3 color, FILE* file) {
+
+	if(color.r > 255) color.r = 255;
+	if(color.g > 255) color.g = 255;
+	if(color.b > 255) color.b = 255;
 		
 	fprintf(file, "%d %d %d\n", color.r, color.g, color.b);	
 }
@@ -144,6 +191,7 @@ int main( void )
     sphere.center.y = 0;
     sphere.center.z = 5; 
     sphere.radius = 1;
+    sphere.specular = 100;
 
 	Sphere sphere2;
     sphere2.color.r = 0;
@@ -153,6 +201,7 @@ int main( void )
     sphere2.center.y = 0;
     sphere2.center.z = 6; 
     sphere2.radius = 1;
+    sphere2.specular = -1;
 
     	Sphere sphere3;
     sphere3.color.r = 0;
@@ -162,6 +211,7 @@ int main( void )
     sphere3.center.y = 0;
     sphere3.center.z = 4; 
     sphere3.radius = 1;
+    sphere3.specular = 10;
 
 
     Sphere sphere_arr[3];
